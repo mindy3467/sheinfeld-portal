@@ -1,7 +1,19 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+// Auth disabled for UI review — restore real auth before production
+import { createContext, useContext, type ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
 import type { UserProfile } from '@/types'
+
+const MOCK_PROFILE: UserProfile = {
+  id: 'mock-profile-id',
+  user_id: 'mock-user-id',
+  email: 'demo@sheinfeld.co.il',
+  full_name: 'משתמש הדגמה',
+  role: 'tenant',
+  phone: '050-0000000',
+  project_id: null,
+  apartment_id: null,
+  is_active: true,
+}
 
 interface AuthContextValue {
   user: User | null
@@ -15,71 +27,18 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [loading, setLoading] = useState(true)
+  const mockUser = { id: 'mock-user-id' } as User
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        void fetchProfile(session.user.id)
-      } else {
-        setLoading(false)
-      }
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        void fetchProfile(session.user.id)
-      } else {
-        setProfile(null)
-        setLoading(false)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  async function fetchProfile(userId: string) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single()
-
-    if (data && !data.is_active) {
-      await supabase.auth.signOut()
-      setProfile(null)
-      setLoading(false)
-      return
-    }
-
-    setProfile(data as UserProfile | null)
-    setLoading(false)
-  }
-
-  async function signIn(email: string, password: string): Promise<{ error: string | null }> {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) return { error: error.message }
+  async function signIn(_email: string, _password: string): Promise<{ error: string | null }> {
     return { error: null }
   }
-
-  async function signOut() {
-    await supabase.auth.signOut()
-  }
-
-  async function resetPassword(email: string): Promise<{ error: string | null }> {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
-    if (error) return { error: error.message }
+  async function signOut() {}
+  async function resetPassword(_email: string): Promise<{ error: string | null }> {
     return { error: null }
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ user: mockUser, profile: MOCK_PROFILE, loading: false, signIn, signOut, resetPassword }}>
       {children}
     </AuthContext.Provider>
   )
